@@ -1,0 +1,192 @@
+.mipt_widget-button {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    z-index: 10;
+    width: 43px;
+    height: 205px;
+    margin: -105px 0 0;
+    padding: 0;
+    border: none;
+    background: url("//feedback.mipt.ru/widget/img/button.png") no-repeat center center / contain;
+    box-shadow: none;
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    cursor: pointer;
+}
+
+.mipt_widget-button:hover {
+    background-image: url("//feedback.mipt.ru/widget/img/button_hover.png");
+}
+
+.mipt_widget-wrapper,
+.mipt_widget-wrapper * {
+    box-sizing: border-box;
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    text-align: left;
+}
+
+.mipt_widget-wrapper {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 21;
+    box-sizing: border-box;
+    background: rgba(80, 80, 90, 0.84);
+}
+
+.mipt_widget-popup {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 960px;
+    transform: translate(-50%, -50%);
+    border-radius: 10px;
+    box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.38);
+}
+
+.mipt_widget-popup:after {
+    content: " ";
+    display: table;
+    clear: both;
+}
+
+.mipt_widget-popup .close-it {
+    position: absolute;
+    z-index: 1;
+    right: -30px;
+    top: -30px;
+    width: 22px;
+    height: 22px;
+    background: url("//feedback.mipt.ru/widget/img/krest.svg") no-repeat center center;
+    cursor: pointer;
+}
+
+.mipt_widget-popup h2 {
+    margin: 0;
+    padding: 0;
+    font-weight: 500;
+    font-size: 25px;
+    color: #000;
+    line-height: 30px;
+}
+
+.mipt_widget-popup .heading {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 255px;
+    padding: 40px 30px 0;
+    border-radius: 10px 0 0 10px;
+    background: url("//feedback.mipt.ru/widget/img/bg1.jpg") repeat center center;
+    color: #fff;
+    font-size: 12px;
+    box-shadow: 0 0 10px 0 rgba(80, 80, 89, 0.81);
+}
+
+.mipt_widget-popup .heading .plane {
+    position: absolute;
+}
+
+.mipt_widget-popup .heading .plane1 {
+    top: 213px;
+    right: -11px;
+    width: 95px;
+    height: 42px;
+    background: url("//feedback.mipt.ru/widget/img/airplane1.png") no-repeat center center / contain;
+}
+
+.mipt_widget-popup .heading .plane2 {
+    top: 286px;
+    left: -61px;
+    width: 137px;
+    height: 77px;
+    background: url("//feedback.mipt.ru/widget/img/airplane2.png") no-repeat center center / contain;
+}
+
+.mipt_widget-popup .heading h2 {
+    color: #fff;
+}
+
+.mipt_widget-popup .heading .bottom-part {
+    position: absolute;
+    bottom: 30px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    line-height: 25px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.mipt_widget-popup .mipt_widget-content {
+    margin-left: 255px;
+    padding: 20px 30px;
+    border-radius: 0 10px 10px 0;
+    background: url("//feedback.mipt.ru/widget/img/bg2.jpg") repeat center center;
+}
+
+.mipt_widget-content .content-block {
+    padding: 25px 30px;
+    margin: 20px 0;
+    border-radius: 5px;
+    background: #fff;
+    box-shadow: 0 3px 5px 0 rgba(80, 80, 89, 0.15);
+}
+
+.mipt_widget-content .content-block h2 {
+    padding-left: 42px;
+}
+
+.mipt_widget-content .content-block.problem h2 {
+    background: url("//feedback.mipt.ru/widget/img/warning.svg") no-repeat left center;
+}
+
+.mipt_widget-content .content-block.initiative h2 {
+    background: url("//feedback.mipt.ru/widget/img/lamp.svg") no-repeat left center;
+}
+
+.mipt_widget-content .content-block p {
+    padding: 15px 100px 35px 0;
+    margin: 0;
+    font-size: 14px;
+    color: #50505a;
+}
+
+.mipt_widget-content .controls {
+    text-align: right;
+}
+
+.mipt_widget-content .button {
+    display: inline-block;
+    width: 200px;
+    height: 42px;
+    line-height: 38px;
+    border: 2px solid #0071bc;
+    border-radius: 5px;
+    font-size: 14px;
+    text-align: center;
+    text-decoration: none;
+    transition: background 300ms, color 300ms;
+}
+
+.mipt_widget-content .button.button-blue {
+    background: #0071bc;
+    color: #fff;
+}
+
+.mipt_widget-content .button.button-blue:hover {
+    background: #fff;
+    color: #0071bc;
+}
+
+.mipt_widget-content .button.button-white {
+    background: #fff;
+    color: #0071bc;
+}
+
+.mipt_widget-content .button.button-white:hover {
+    background: #0071bc;
+    color: #fff;
+}

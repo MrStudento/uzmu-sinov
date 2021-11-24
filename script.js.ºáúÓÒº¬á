@@ -1,0 +1,31 @@
+
+$(function () {
+    $(".has_help").hover(function () {
+        $(this).find(".help_content").animate({
+            opacity: 'show',      // animate slideUp
+            margin: 'show',
+            padding: 'show',
+            height: 'show'        // animate fadeOut
+        }, 'slow', 'linear');
+    }, function () {
+        $(this).find(".help_content").animate({
+            opacity: 'hide',      // animate slideUp
+            margin: 'hide',
+            padding: 'hide',
+            height: 'hide'        // animate fadeOut
+        }, 'slow', 'linear');
+    });
+
+    $(".accordeon label").toggle(
+        function(){
+            $(this).addClass("opened");
+            $(this).next().slideDown(500);
+        },
+        function(){
+            $(this).removeClass("opened");
+            $(this).next().slideUp(300);
+        }
+    );
+});
+
+

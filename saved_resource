@@ -1,0 +1,1 @@
+/**/ typeof yaBrowserUpdaterJSONPCallback === 'function' && yaBrowserUpdaterJSONPCallback({"needUpdate":false,"browser":"ie","version":"84.0","browserName":"Edge","browserBase":"Chromium"});

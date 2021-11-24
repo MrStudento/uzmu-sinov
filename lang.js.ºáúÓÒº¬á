@@ -1,0 +1,17 @@
+$(document).ready(function() {
+	$("a[title='English']").hover(
+	function(){
+		$("a[title='English'] img").attr("src","/images/lang_focus.png");
+	},
+	function(){
+		$("a[title='English'] img").attr("src","/images/lang2.png");
+	});
+	
+	$("a[title='Русский']").hover(
+	function(){
+		$("a[title='Русский'] img").attr("src","/images/lang_focus.png");
+	},
+	function(){
+		$("a[title='Русский'] img").attr("src","/images/lang1.png");
+	});
+});

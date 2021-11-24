@@ -1,0 +1,77 @@
+(function() {
+    'use strict';
+    document.addEventListener("DOMContentLoaded", function() {
+
+        var body = document.body,
+            head = document.head,
+            widgetWrp = document.createElement('div'),
+            widgetPopup = document.createElement('div'),
+            closeButton = document.createElement('div'),
+            button = document.createElement('button'),
+            style = document.createElement('link'),
+            body_overflow = body.style.overflow;
+
+        widgetWrp.style.display = 'none';
+
+        style.rel = 'stylesheet';
+        style.type = 'text/css';
+        style.href = '//feedback.mipt.ru/widget/mipt_widget.css';
+        head.appendChild(style);
+
+        widgetWrp.className = 'mipt_widget-wrapper';
+        widgetPopup.className = 'mipt_widget-popup';
+        closeButton.className = 'close-it';
+
+        widgetPopup.innerHTML = '<aside class="heading">' +
+            '<div class="plane plane1"></div>' +
+            '<div class="plane plane2"></div>' +
+            '<h2>Система обратной связи</h2>' +
+            '<div class="bottom-part">Создано на платформе<br><img src="//feedback.mipt.ru/widget/img/logo_happycitizen.png"></div>' +
+            '</aside>' +
+            '<section class="mipt_widget-content">' +
+            '<div class="content-block problem">' +
+            '<h2>Сообщите о проблеме</h2>' +
+            '<p>Если вы студент или сотрудник ВУЗа, направляйте свои обращения через портал обратной связи напрямую руководству.</p>' +
+            '<div class="controls">' +
+            '<a href="//feedback.mipt.ru/problems" class="button button-blue" target="_blank">Сообщить о проблеме</a>' +
+            '</div>' +
+            '</div>' +
+            '<div class="content-block initiative">' +
+            '<h2>Добавьте инициативу</h2>' +
+            '<p>Выдвините предложение по улучшению условий учебы и жизни студентов, а также по работе ВУЗа в целом, соберите подписи, и, возможно, оно будет воплощено в жизнь.</p>' +
+            '<div class="controls">' +
+            '<a href="//feedback.mipt.ru/petitions" class="button button-white" target="_blank">Добавить инициативу</a>' +
+            '</div>' +
+            '</div>' +
+            '</section>';
+
+        closeButton.addEventListener('click', function() {
+            toggleModalVisibility();
+        });
+        widgetPopup.appendChild(closeButton);
+        widgetWrp.appendChild(widgetPopup);
+        widgetWrp.addEventListener('click', function(e){
+            if(e.target.className == 'mipt_widget-wrapper'){
+                toggleModalVisibility();
+            }
+        });
+
+        button.className = 'mipt_widget-button';
+        button.addEventListener('click', function() {
+            toggleModalVisibility();
+        });
+
+        body.appendChild(widgetWrp);
+        body.appendChild(button);
+
+        function toggleModalVisibility(){
+            if (widgetWrp.style.display) {
+                widgetWrp.style.display = '';
+                body.style.overflow = 'hidden';
+            } else {
+                widgetWrp.style.display = 'none';
+                body.style.overflow = body_overflow;
+            }
+        }
+    });
+})();

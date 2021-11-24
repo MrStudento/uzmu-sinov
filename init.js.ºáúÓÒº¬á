@@ -1,0 +1,61 @@
+WEBFORMAT = {};
+WEBFORMAT.load = function(tags, actionsFunction){ //tag = {[id], type, src, [condition]}
+    var index;
+    var wasLoaded = [];
+
+    for(index in tags){
+        wasLoaded[index] = false;
+        tags[index].listener = function(index){return function(){TagWasLoaded(index);}}(index);
+    }
+    function AddTag(type, index){
+        var srcAttr;
+        switch(type){
+            case 'js': type = 'script'; srcAttr = 'src'; break;
+            case 'css':  type = 'link'; srcAttr = 'href';  break;
+        }
+        var domTag = document.createElement(type);
+        var tag = tags[index];
+        switch(type){
+            case 'script':
+                domTag.setAttribute("type", "text/javascript");
+                break;
+            case 'link':
+                domTag.setAttribute("rel","stylesheet");
+                domTag.setAttribute("type","text/css");
+                domTag.setAttribute("media","all");
+                break;
+        }
+        domTag.setAttribute(srcAttr, tag.src);
+        domTag.onload = tag.listener;
+        domTag.onreadystatechange = function () { //IE
+            if(this.readyState == 'complete' || this.readyState == 'loaded'){TagWasLoaded(index);}
+        };
+        (document.getElementsByTagName("head")[0] || document.documentElement).appendChild(domTag);
+    }
+    function TagWasLoaded(index){
+        if(!wasLoaded[index]){
+            wasLoaded[index] = true;
+            if(index < (tags.length - 1)){ProcessTag(index - 0 + 1);
+            }else{actionsFunction(tags[index]);}
+        }
+    }
+
+    function ProcessTag(index){
+        var tag = tags[index];
+        if(('id' in tag) && (tag.id == 'jquery') && ('$' in window) && !('fn' in $)){tags[index].$ = $;}
+        if((tag.type == 'css') && !('condition' in tag)){
+            for(i = index - 1; i >= 0; i--){
+                if(tags[i].type == 'js'){
+                	if(wasLoaded[i]){AddTag(tag.type, index);
+                	}else{actionsFunction(tag);}
+                	break;
+                }
+            }
+        }else if(tag.condition){ AddTag(tag.type, index);
+        }else{
+            if(index < (tags.length - 1)){ProcessTag(index - 0 + 1);
+            }else{actionsFunction(tags[index]);}
+        }
+    }
+    if(tags.length){ProcessTag(0);}
+}

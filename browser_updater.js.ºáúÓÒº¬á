@@ -1,0 +1,7 @@
+var yaBrowserUpdater, yaUpdaterParams = {theme: "red"};
+if ("ya" in window && "browserUpdater" in window["ya"]) {
+    if (document && document.documentElement && document.documentElement.lang) {
+        yaUpdaterParams["lang"] = document.documentElement.lang;
+    }
+    yaBrowserUpdater = new ya.browserUpdater.init(yaUpdaterParams);
+}

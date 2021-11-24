@@ -1,0 +1,115 @@
+window.ANALYTICS_MIXPANEL_COOKIE_UNIQ = "analytics.mixpanel.cookie.uniq";
+window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS = "analytics.mixpanel.cookie.transitions";
+window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS_TOTAL = "analytics.mixpanel.cookie.transitionsTotal";
+
+if(window.IS_AUDIT_ENABLED) {
+    window.onload = function () {
+        function isMainPage(location) {
+            var p = location.pathname;
+            if (p == '' || p == '/' || p == '/index' || p == '/index.php') {
+                return true;
+            }
+            return false;
+        }
+
+        function createCookieLongTerm(name, value, days) {
+            var expires;
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toGMTString();
+            } else {
+                expires = "";
+            }
+            createCookieInternal(name, value, expires);
+        }
+
+        function createCookieShortTerm(name, value, minutes) {
+            var expires;
+            if (minutes) {
+                var date = new Date();
+                date.setTime(date.getTime() + (minutes * 60 * 1000));
+                expires = "; expires=" + date.toGMTString();
+            } else {
+                return; //there is no case for never exiration
+            }
+            createCookieInternal(name, value, expires);
+        }
+
+        function createCookieInternal(name, value, expires) {
+            document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + expires + "; path=/";
+        }
+
+        function readCookie(name) {
+            var nameEQ = encodeURIComponent(name) + "=";
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+            }
+            return null;
+        }
+
+        function eraseCookie(name) {
+            createCookie(name, "", -1);
+        }
+
+        function getNewGuid() {
+            function s4() {
+                return Math.floor((1 + Math.random()) * 0x10000)
+                    .toString(16)
+                    .substring(1);
+            }
+
+            return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+                s4() + '-' + s4() + s4() + s4();
+        }
+
+        function GetReffererPageName() {
+            var referrer = document.referrer;
+            if (!referrer) return;
+            return referrer.replace(/^[^:]+:\/\//, '').replace(/[#?].*/, '').replace(window.location.hostname, "");
+        }
+        var guid = readCookie(window.ANALYTICS_MIXPANEL_COOKIE_UNIQ);
+        if (guid === null) {
+            guid = getNewGuid();
+            createCookieLongTerm(window.ANALYTICS_MIXPANEL_COOKIE_UNIQ, guid, 2 * 30);
+            if (!isMainPage(window.location)) {
+                mixpanel.register({
+                    "user_guid": guid
+                });
+            }
+        }
+        if (!isMainPage(window.location)) {
+            mixpanel.identify(guid);
+        }
+        var numOfTransitions = readCookie(window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS);
+        if (numOfTransitions === null) {
+            numOfTransitions = 1;
+            createCookieShortTerm(window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS, numOfTransitions, 30);
+        } else {
+            numOfTransitions = parseInt(numOfTransitions) + 1;
+            createCookieShortTerm(window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS, numOfTransitions, 30);
+        }
+        var numOfTransitionsTotal = readCookie(window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS_TOTAL);
+        if (numOfTransitionsTotal === null) {
+            numOfTransitionsTotal = 1;
+            createCookieLongTerm(window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS_TOTAL, numOfTransitionsTotal, 2 * 30);
+        } else {
+            numOfTransitionsTotal = parseInt(numOfTransitionsTotal) + 1;
+            createCookieLongTerm(window.ANALYTICS_MIXPANEL_COOKIE_TRANSITIONS_TOTAL, numOfTransitionsTotal, 30);
+        }
+        if (window.IS_AUDIT_ENABLED && !isMainPage(window.location)) {
+            mixpanel.track(
+                "Page_Visited",
+                {"secondaryIdentity": guid,
+                    "secondaryTransitionsCount": numOfTransitions,
+                    "secondaryTransitionsCountTotal": numOfTransitionsTotal,
+                    "pageUrl": window.location.pathname,
+                    "referrerPage": GetReffererPageName(),
+                    "eventDate": new Date()}
+            );
+        }
+    }
+}

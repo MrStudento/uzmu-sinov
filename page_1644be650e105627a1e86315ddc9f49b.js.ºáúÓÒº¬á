@@ -1,0 +1,1483 @@
+
+; /* Start:"a:4:{s:4:"full";s:85:"/bitrix/components/alfa/post_list.slider/templates/.default/script.js?148941412119842";s:6:"source";s:69:"/bitrix/components/alfa/post_list.slider/templates/.default/script.js";s:3:"min";s:0:"";s:3:"map";s:0:"";}"*/
+// Production steps of ECMA-262, Edition 5, 15.4.4.18
+// Reference: http://es5.github.io/#x15.4.4.18
+if (!Array.prototype.forEach) {
+  Array.prototype.forEach = function(callback, thisArg) {
+    var T, k;
+    if (this == null) {
+      throw new TypeError(' this is null or not defined');
+    }
+    var O = Object(this);
+    var len = O.length >>> 0;
+    if (typeof callback !== "function") {
+      throw new TypeError(callback + ' is not a function');
+    }
+    if (arguments.length > 1) {
+      T = thisArg;
+    }
+    k = 0;
+    while (k < len) {
+      var kValue;
+      if (k in O) {
+        kValue = O[k];
+        callback.call(T, kValue, k, O);
+      }
+      k++;
+    }
+  };
+}
+
+if (!Array.prototype.indexOf) {
+  Array.prototype.indexOf = function (searchElement, fromIndex) {
+    if (this === undefined || this === null) {
+      throw new TypeError('"this" is null or not defined');
+    }
+    var length = this.length >>> 0; // Hack to convert object.length to a UInt32
+    fromIndex = +fromIndex || 0;
+    if (Math.abs(fromIndex) === Infinity) {
+      fromIndex = 0;
+    }
+    if (fromIndex < 0) {
+      fromIndex += length;
+      if (fromIndex < 0) {
+        fromIndex = 0;
+      }
+    }
+    for (; fromIndex < length; fromIndex++) {
+      if (this[fromIndex] === searchElement) {
+        return fromIndex;
+      }
+    }
+    return -1;
+  };
+}
+
+if (!String.prototype.trim) {
+  (function() {
+    // Make sure we trim BOM and NBSP
+    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
+    String.prototype.trim = function() {
+      return this.replace(rtrim, '');
+    };
+  })();
+}
+
+(function ($) {
+  var ActionQueue = function () {
+    var t = this;
+    t._funcs = [];
+    t._dequeue = t.dequeue.bind(t);
+  };
+  ActionQueue.prototype.queue = function (func) {
+    var t = this;
+    t._funcs.push(func);
+    if (t._funcs.length == 1) {
+      func(t._dequeue);
+    }
+    return t;
+  };
+  // Is called at the end of the queued function.
+  ActionQueue.prototype.dequeue = function () {
+    var t = this;
+    t._funcs.shift();
+    var nextFunc = t._funcs[0];
+    if (nextFunc) {
+      nextFunc(t._dequeue);
+    }
+    return t;
+  };
+  ActionQueue.prototype.clear = function () {
+    var t = this;
+    if (t._funcs.length > 1) {
+      t._funcs.length = 1;
+    }
+    return t;
+  };
+
+  var SimpleSlider = function (params) {
+    var t = this;
+    t._slideTimeoutId = null;
+    t.reinit(params);
+  };
+  SimpleSlider.prototype._classPrefix = 'simple-slider';
+  SimpleSlider.prototype._indexRegex = /\S+-index-(\d+)/;
+  SimpleSlider.prototype._defaults = {
+    stage: '.slider-stage',
+    btnNext: '.btn-next',
+    btnPrev: '.btn-prev',
+    autoStart: false,
+    defaultImageRatio: 754 / 350,
+    fx: 'crossFade',
+    fxDuration: 1000,
+    slides: [],
+    slideTimeout: 12000,
+    startIndex: 0,
+    lang: 'ru'
+  };
+  SimpleSlider.prototype.reinit = function (params) {
+    var t = this;
+    if (t._mainQueue) {
+      t._mainQueue.clear();
+    } else {
+      t._mainQueue = new ActionQueue();
+    }
+    if (t._slideTimeoutId !== null) {
+      clearTimeout(t._slideTimeoutId);
+      t._slideTimeoutId = null;
+    }
+    if (params) {
+      if (t._settings) {
+        $.extend(t._settings, params);
+      } else {
+        t._settings = $.extend({}, t._defaults, params);
+      }
+    } else {
+      if (!t._settings) {
+        t._settings = $.extend({}, t._defaults);
+      }
+    }
+    if (!(t._settings.fx in t._transitions)) {
+      t._settings.fx = 'fadeOut';
+    }
+    if (!t._settings.slideTimeout) {
+      t._settings.slideTimeout = t._defaults.slideTimeout
+    }
+    t._fxDuration = t._settings.fxDuration || t._defaults.fxDuration;
+    t._fxHalfDuration = Math.floor(t._fxDuration / 2);
+
+    if (!t._$root) {
+      t._$root = $(t._settings.root).addClass(t._classPrefix);
+    }
+    if (t._$stage) {
+      t._$stage.empty();
+    } else {
+      if (t._settings.stage) {
+        t._$stage = t._$root.find(t._settings.stage);
+      } else {
+        t._$stage = $('<div>', { 'class': t._classPrefix + '-stage' }).
+            appendTo(t._$root);
+      }
+      t._$stage.on('mouseenter', function () {
+        t._wasStarted = t._isStarted;
+        t.pause();
+      }).on('mouseleave', function () {
+        if (t._wasStarted) {
+          t.play();
+        }
+      });
+    }
+
+    if (t._$layer) {
+      t._$layer.empty();
+    } else {
+      if (t._settings.layer) {
+        t._$layer = t._$root.find(t._settings.layer);
+      } else {
+        t._$layer = $('<div>', { 'class': t._classPrefix + '-layer' }).
+            appendTo(t.$root);
+      }
+    }
+
+    if (t._$pagination) {
+      t._$pagination.empty();
+    } else {
+      t._$pagination = $();
+      if (t._settings.pagination) {
+        var pagType = typeof t._settings.pagination;
+        if (pagType === 'string') {
+          t._$pagination = t._$root.find(t._settings.pagination);
+        } else if (pagType === 'boolean') {
+          t._$pagination = $('<div>', { 'class': 'slider-pagination' }).
+              appendTo(t._$root);
+        }
+        t._$pagination.on('click', '.anchor', function () {
+          var $anchor = $(this);
+          if ($anchor.hasClass('current')) return;
+          t._mainQueue.clear();
+          var index = +$anchor.data('index');
+          t._currIndex = index;
+          t._transitionTo(index);
+        });
+      }
+    }
+
+    if (!t._$btnNext) {
+      if (t._settings.btnNext) {
+        t._$btnNext = t._$root.find(t._settings.btnNext);
+        t._$btnNext.on('click', function () {
+          var nextIndex = t._currIndex + 1;
+          if (nextIndex >= t._slides.length) {
+            nextIndex = 0;
+          }
+          t._currIndex = nextIndex;
+          t._transitionTo(nextIndex);
+        });
+      } else {
+        t._$btnNext = $();
+      }
+    }
+    if (!t._$btnPrev) {
+      if (t._settings.btnPrev) {
+        t._$btnPrev = t._$root.find(t._settings.btnPrev);
+        t._$btnPrev.on('click', function () {
+          var prevIndex = t._currIndex - 1;
+          if (prevIndex < 0) {
+            prevIndex = t._slides.length - 1;
+          }
+          t._currIndex = prevIndex;
+          t._transitionTo(prevIndex);
+        });
+      } else {
+        t._$btnPrev = $();
+      }
+    }
+
+    t._defaultImageRatio = t._settings.defaultImageRatio;
+    t._imageQueue = new ActionQueue();
+    t._slides = t._settings.slides;
+    t._currIndex = isFinite(t._settings.startIndex) ?
+        +t._settings.startIndex : 0;
+    t._$pagination.children('.anchor-index-' + t._currIndex).
+        addClass('current');
+    t._$currSlide = t._$stage.children('.slide-index-' + t._currIndex);
+    if (t._$currSlide.length) {
+      t._$currSlide.css({ opacity: 1, 'z-index': 10 });
+      t._$currLayer = t._$layer.children('.layer-index-' + t._currIndex).css({
+        opacity: 1, 'z-index': 10
+      });
+      t._nextIndex = t._currIndex + 1;
+      if (t._nextIndex >= t._slides.length) {
+        t._nextIndex = 0;
+      }
+      // If there's only one slide there's no need to animate slider.
+      if (t._nextIndex == t._currIndex) return;
+      t._preloadSlide(t._slides[t._nextIndex]);
+      if (t._settings.autoStart) {
+        t._isStarted = true;
+        t._slideTimeoutId = setTimeout(function () {
+          t._slideTimeoutId = null;
+          t._transitionTo();
+        }, t._settings.slideTimeout);
+      }
+    } else {
+      t._$currSlide = $();
+      t._$currLayer = $();
+      t._nextIndex = t._currIndex;
+      if (t._settings.autoStart) {
+        t._isStarted = true;
+        t._transitionTo();
+      }
+    }
+  };
+  SimpleSlider.prototype._transitionTo = function (index) {
+    var t = this;
+    t._mainQueue.queue(function (next) {
+      if (t._slideTimeoutId !== null) {
+        clearTimeout(t._slideTimeoutId);
+        t._slideTimeoutId = null;
+      }
+      if (isFinite(index)) {
+        index = +index;
+      } else {
+        t._currIndex = index = t._nextIndex;
+      }
+      var nextSlide = t._slides[index];
+      if (nextSlide) {
+        nextSlide.index = index; // in case slide.index is not defined
+      } else {
+        return next();
+      }
+      t._prepareSlide(index).done(function () {
+        t._$nextSlide = t._$stage.children('.slide-index-' + index);
+        t._$nextLayer = t._$layer.children('.layer-index-' + index);
+        if (t._$nextSlide.length) {
+          if (t._$nextSlide.is(t._$currSlide)) {
+            if (t._slides.length > 1) {
+              index++;
+              if (index >= t._slides.length) {
+                index = 0;
+              }
+              t._nextIndex = index;
+              if (t._slideTimeoutId !== null) {
+                clearTimeout(t._slideTimeoutId);
+                t._slideTimeoutId = null;
+              }
+              if (t._isStarted) {
+                t._preloadSlide(t._slides[index]);
+                t._slideTimeoutId = setTimeout(function () {
+                  t._slideTimeoutId = null;
+                  t._transitionTo();
+                }, t._settings.slideTimeout);
+              }
+            }
+            return next();
+          }
+        } else {
+          t._$nextSlide = t._buildSlide(nextSlide);
+          t._$nextLayer = t._buildLayer(nextSlide);
+        }
+        var $anchors = t._$pagination.children();
+        $anchors.filter('.current').removeClass('current');
+        $anchors.filter('.anchor-index-' + index).addClass('current');
+        t._transitions[t._settings.fx].call(t, function () {
+          t._$currSlide = t._$nextSlide;
+          t._$currLayer = t._$nextLayer;
+          index++;
+          if (index >= t._slides.length) {
+            index = 0;
+          }
+          t._nextIndex = index;
+          if (t._slideTimeoutId !== null) {
+            clearTimeout(t._slideTimeoutId);
+            t._slideTimeoutId = null;
+          }
+          if (t._isStarted) {
+            t._preloadSlide(t._slides[index]);
+            t._slideTimeoutId = setTimeout(function () {
+              t._slideTimeoutId = null;
+              t._transitionTo();
+            }, t._settings.slideTimeout);
+          }
+          next();
+        });
+      });
+    });
+  };
+  SimpleSlider.prototype._transitions = {
+    fadeIn: function (callback) {
+      var t = this;
+      t._$currSlide.css('z-index', 9);
+      t._$nextSlide.css('z-index', 10).show(); // already has opacity: 0;
+      t._$nextLayer.css('z-index', 10).show(); // already has opacity: 0;
+      t._$currLayer.fadeTo(t._fxDuration, 0);
+      t._$nextSlide.fadeTo(t._fxDuration, 1);
+      t._$nextLayer.fadeTo(t._fxDuration, 1);
+      $().add(t._$currSlide).add(t._$currLayer).add(t._$nextLayer).promise().
+      done(function () {
+        t._$currSlide.css('opacity', 0).hide();
+        t._$currLayer.css('z-index', 1).hide();
+        callback();
+      });
+    },
+    fadeOut: function (callback) {
+      var t = this;
+      t._$nextSlide.css('z-index', 9).css('opacity', 1).show();
+      t._$nextLayer.css('z-index', 10).show();
+      t._$currSlide.fadeTo(t._fxDuration, 0);
+      t._$currLayer.fadeTo(t._fxDuration, 0);
+      t._$nextLayer.fadeTo(t._fxDuration, 1);
+      $().add(t._$currSlide).add(t._$currLayer).add(t._$nextLayer).promise().
+      done(function () {
+        t._$currSlide.css('z-index', 1).hide();
+        t._$currLayer.css('z-index', 1).hide();
+        t._$nextSlide.css('z-index', 10);
+        callback();
+      });
+    },
+    crossFade: function (callback) {
+      var t = this;
+      t._$currSlide.css('z-index', 9);
+      t._$nextSlide.css('opacity', 0).css('z-index', 10).show();
+      t._$nextLayer.css('opacity', 0).css('z-index', 10).show();
+      t._$currSlide.fadeTo(t._fxDuration, 0);
+      t._$currLayer.fadeTo(t._fxDuration, 0);
+      t._$nextSlide.fadeTo(t._fxDuration, 1);
+      t._$nextLayer.fadeTo(t._fxDuration, 1);
+      $().add(t._$currSlide).add(t._$nextSlide).add(t._$currLayer).
+      add(t._$nextLayer).promise().done(function () {
+        t._$currSlide.css('z-index', 1).hide();
+        t._$currLayer.css('z-index', 1).hide();
+        callback();
+      });
+    }
+  };
+  /**
+   *  slide must be in the form:
+   *  {
+   *    id: <integer>,
+   *    index: <slide index>,
+   *    inactive: <boolean>,
+   *    image: {
+   *      img: <img element>,
+   *      width: 754,
+   *      height: 350,
+   *      src: <image path>
+   *    },
+   *    layer: {
+   *      link: <item url>,
+   *      title: <slide title which will be placed into the layer>,
+   *      text: <slide text which will be placed into the layer>
+   *    }
+   *  }
+   */
+  SimpleSlider.prototype._buildSlide = function (slide) {
+    var t = this;
+    var index = slide.index;
+    var inactiveClass = slide.inactive ? ' slide-inactive' : '';
+    var $slide = $('<a>', {
+      'class': 'slide' + inactiveClass + ' slide-index-' + index
+      + ' slide-id-' + slide.id,
+      href: slide.layer.link || '',
+      target: '_blank'
+    }).css({
+      opacity: 0, 'z-index': 1
+    }).data('index', index).appendTo(this._$stage);
+    var image = slide.image;
+    var imgElem = image && image.img;
+    if (imgElem) {
+      var $imgElem = $(imgElem);
+      $imgElem.addClass('image').appendTo($slide);
+      // if (imgElem.width && imgElem.height) {
+      //   $imgElem.css({
+      //     width: imgElem.width + 'px', height: imgElem.height + 'px'
+      //   });
+      // }
+    } else {
+      var text = t._settings.lang == 'en' ? 'no photo' : 'нет фотографии';
+      $('<span>', {
+        'class': 'image dummy-image'
+      }).append(text).appendTo($slide);
+    }
+    $slide.hide();
+    return $slide;
+  };
+  SimpleSlider.prototype._buildLayer = function (slide) {
+    var layer = slide.layer;
+    if (!layer) {
+      slide.layer = { title: '', text: '' }
+    }
+    var $layer = $('<div>', {
+      'class': 'layer layer-index-' + slide.index
+    }).css({
+      opacity: 0, overflow: 'visible', 'z-index': 1
+    }).appendTo(this._$layer);
+    $('<div>', { 'class': 'layer-title' }).append(
+        $('<a>', { 'class': 'title-link', href: layer.link || '' })
+            .append(layer.title || '')
+    ).appendTo($layer);
+    $('<div>', {
+      'class': 'layer-text'
+    }).append(layer.text || '').appendTo($layer);
+    $layer.ellipsis().hide();
+    return $layer;
+  };
+  SimpleSlider.prototype._prepareSlide = function (index) {
+    var t = this;
+    var slide = t._slides[index];
+    if (!slide._promise) {
+      t._preloadSlide(slide); // creates slide._promise
+    }
+    return slide._promise;
+  };
+  SimpleSlider.prototype._preloadSlide = function (slide) {
+    if (!slide || slide._promise) {
+      return;
+    } else {
+      var image = slide.image;
+      if (!image || !image.src) {
+        // No image to load
+        var dfd = new $.Deferred();
+        slide._promise = dfd.promise();
+        dfd.resolve();
+        return;
+      }
+    }
+    var t = this;
+    dfd = new $.Deferred();
+    slide._promise = dfd.promise();
+    // image.img contains img element which already exists on the page
+    if (image.img) {
+      var imgElem = image.img;
+    } else {
+      imgElem = document.createElement('img');
+    }
+    t._imageQueue.queue(function (next) {
+      if (imgElem.width && imgElem.height) {
+        //console.log('slide[' + i + '] seems to be already loaded.');
+        image._timeoutId = null;
+        onLoadImg();
+      } else {
+        //console.log('slide[' + i + '] is being loaded.');
+        image._timeoutId = setTimeout(onTimeoutImg, 60000);
+        imgElem.onload = onLoadImg;
+        if (!image.img) {
+          // If there's no image.img we must be dealing with new <img> element
+          // for which we must set the src attribute.
+          imgElem.src = image.src;
+          // Otherwise the <img> element is already on the page and the image
+          // is either loading or already loaded.
+        }
+      }
+      slide._promise.done(next);
+    });
+
+    function onLoadImg() {
+      imgElem.onload = null;
+      if (image._timeoutId !== null) {
+        clearTimeout(image._timeoutId);
+        image._timeoutId = null;
+      }
+      image.img = imgElem;
+      image.width = imgElem.width;
+      image.height = imgElem.height;
+      //console.log('slide[' + i + '] has been loaded.');
+      if (image.width && image.height) {
+        var imageRatio = image.width / image.height;
+        if (imageRatio > t._defaultImageRatio) {
+          var imageClass = 'landscape-wide';
+        } else if (imageRatio > 1) {
+          imageClass = 'landscape-narrow';
+        } else {
+          imageClass = 'portrait';
+        }
+      } else {
+        imageClass = 'unknown-ratio';
+      }
+      $(imgElem).addClass(imageClass);
+      dfd.resolve();
+    }
+
+    function onTimeoutImg() {
+      imgElem.onload = null;
+      image.img = imgElem;
+      image._timeoutId = null;
+      $(imgElem).addClass('unknown-ratio');
+      dfd.resolve();
+    }
+  };
+  SimpleSlider.prototype.pause = function () {
+    var t = this;
+    if (t._slideTimeoutId !== null) {
+      clearTimeout(t._slideTimeoutId);
+      t._slideTimeoutId = null;
+    }
+    t._isStarted = false;
+  };
+  SimpleSlider.prototype.play = function () {
+    var t = this;
+    if (t._slideTimeoutId === null) {
+      t._slideTimeoutId = setTimeout(function () {
+        t._slideTimeoutId = null;
+        t._transitionTo();
+      }, t._settings.slideTimeout);
+    }
+    t._isStarted = true;
+  };
+  SimpleSlider.prototype.stop = function () {
+    var t = this;
+    if (t._slideTimeoutId !== null) {
+      clearTimeout(t._slideTimeoutId);
+      t._slideTimeoutId = null;
+    }
+    t._isStarted = false;
+    t._nextIndex = 0;
+  };
+
+  var rootSel = '#main-slider';
+
+  var sliderData = (function () {
+    var slides = [],
+        slideIdRegex = /slide-id-(\d+)/;
+
+    $(function () {
+      var $slider = $(rootSel);
+      var $sliderData = $slider.find('.slider-data');
+      $slider.children('.slider-stage').children().each(function () {
+        var $slide = $(this);
+        var $image = $slide.find('.image');
+        var index = +$slide.data('index');
+        var match = $slide.attr('class').match(slideIdRegex);
+        var id = match ? +match[1] : 0;
+        slides[index] = {
+          id: id,
+          inactive: $slide.hasClass('slide-inactive'),
+          image: {
+            img: $image.get(0),
+            src: $image.attr('src'),
+            width: $image.width(),
+            height: $image.height()
+          }
+        };
+      });
+      $slider.children('.slider-layer').children().each(function () {
+        var $layer = $(this);
+        var $link = $layer.find('.title-link');
+        var $text = $layer.children('.layer-text');
+        var index = $layer.data('index');
+        var slide = slides[index];
+        if (!slide) slide = slides[index] = { layer: {} };
+        slide.layer = {
+          link: $link.attr('href'),
+          title: $link.text(),
+          text: $text.html()
+        };
+      });
+      $sliderData.children().each(function () {
+        var $slide = $(this);
+        var index = $slide.data('index');
+        slides[index] = {
+          id: $slide.data('id'),
+          inactive: $slide.data('inactive') === 'Y',
+          image: {
+            src: $slide.data('imgSrc'),
+            width: +$slide.data('imgWidth'),
+            height: +$slide.data('imgHeight')
+          },
+          layer: {
+            link: $slide.data('link'),
+            title: $slide.data('title'),
+            text: $slide.html()
+          }
+        };
+      })
+    });
+
+    return {
+      getSlides: function () {
+        return slides;
+      }
+    }
+  })();
+
+  $(function () {
+    var $root = $(rootSel);
+    var slider = new SimpleSlider({
+      root: rootSel,
+      stage: '.slider-stage',
+      layer: '.slider-layer',
+      pagination: '.slider-pagination',
+      autoStart: true,
+      slides: sliderData.getSlides(),
+      slideTimeout: +$root.data('slideTimeout'),
+      fx: 'fadeIn',
+      fxDuration: +$root.data('fxDuration'),
+      defaultImageRatio: 754 / 350
+    });
+    slider.play();
+  });
+})(jQuery);
+/* End */
+;
+; /* Start:"a:4:{s:4:"full";s:91:"/bitrix/components/alfa/post_list.tabs/templates/tabs_on_main_page/script.js?15077363515031";s:6:"source";s:76:"/bitrix/components/alfa/post_list.tabs/templates/tabs_on_main_page/script.js";s:3:"min";s:0:"";s:3:"map";s:0:"";}"*/
+if (!String.prototype.trim) {
+  (function() {
+    // Make sure we trim BOM and NBSP
+    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
+    String.prototype.trim = function() {
+      return this.replace(rtrim, '');
+    };
+  })();
+}
+
+(function ($) {
+  var cookie = (function () {
+    var d = document,
+        path = '/';
+
+    var never = new Date();
+    never.setFullYear(never.getFullYear() + 1);
+
+    return {
+      get: function (name) {
+        var cookie = d.cookie;
+        if (!cookie) return '';
+        var params = cookie.split('; ');
+        for (var i = 0, len = params.length; i < len; i++) {
+          var param = params[i];
+          var pos = param.indexOf('=');
+          if (pos > 0) {
+            var n = param.slice(0, pos);
+            if (n === name) {
+              return decodeURIComponent(param.slice(pos + 1));
+            }
+          }
+        }
+        return '';
+      },
+      set: function (name, value) {
+        d.cookie = name + '=' + encodeURIComponent(value) +
+        '; expires=' + never.toUTCString() +
+        '; path=' + path;
+      }
+    }
+  })();
+
+  var lang = 'ru',
+      rootSel = '#mainpage-info-tabs',
+      siteDir = '/',
+      viewTypeClass = {
+        list: 'view-type-list',
+        cells: 'view-type-cells'
+      },
+      $infoTabs = null,
+      $shownContent = null,
+      $tabButtons = null,
+      $tabsContents = null,
+      $underline = null,
+      $viewTypeBtn = null;
+
+
+
+  $(function () {
+    $infoTabs = $(rootSel);
+    lang = $infoTabs.data('lang').trim();
+    siteDir = $infoTabs.data('siteDir').trim();
+    $tabsContents = $infoTabs.find('.tabs-contents');
+    $shownContent = $infoTabs.children('.shown-content');
+    $viewTypeBtn = $infoTabs.find('.view-select-button');
+    $tabButtons = $infoTabs.find('.tab-button-list');
+    $viewTypeBtn.on('click', onViewTypeBtnClick);
+    $tabButtons.on('click', '.tab-button', onTabButtonClick);
+    $shownContent.on('click', onPostItemClick);
+    $underline = $tabButtons.find('.b-underline');
+    $underline.css({ left: 0, width: $underline.width() + 'px' }).
+        css('right', 'auto').appendTo($tabButtons);
+  });
+
+  function onPostItemClick(event) {
+    // If event target is <a> or
+    // if view type is 'LIST' (i.e. view type of the $viewTypeBtn is 'CELLS')
+    // we don't process this click.
+    var $target = $(event.target);
+    if ($target.prop('tagName').toLowerCase() == 'a' ||
+        $viewTypeBtn.hasClass(viewTypeClass.cells)) {
+      return;
+    }
+    var $post = $target.closest('.post');
+    var link = $post.find('.post-link')[0];
+    if (link) location.href = link.href;
+  }
+
+  function onViewTypeBtnClick(event) {
+    var $button = $(this);
+    if ($button.hasClass(viewTypeClass.cells)) {
+      // Current view type is 'list'.
+      var currViewTypeClass = viewTypeClass.list;
+      var newViewType = 'CELLS';
+      var newViewTypeClass = viewTypeClass.cells;
+    } else {
+      // Current view type is 'cells'.
+      currViewTypeClass = viewTypeClass.cells;
+      newViewType = 'LIST';
+      newViewTypeClass = viewTypeClass.list;
+    }
+    $button.removeClass(newViewTypeClass).addClass(currViewTypeClass);
+    $shownContent.fadeTo(200, 0).queue(function () {
+      cookie.set('MAIN_PAGE_POSTS_VIEW_TYPE', newViewType);
+      $shownContent.removeClass(currViewTypeClass).
+          addClass(newViewTypeClass).dequeue();
+    }).fadeTo(200, 1.0);
+  }
+
+  function onTabButtonClick(event) {
+    var $button = $(this);
+    if ($button.hasClass('active')) return;
+    event.preventDefault();
+    $button.siblings('.active').removeClass('active');
+    $button.addClass('active');
+    var contentType = $button.data('content');
+    var targetLeft = $button.position().left;
+    var targetWidth = $button.width();
+    $underline.animate({
+      left: targetLeft + 'px',
+      width: targetWidth + 'px'
+    }, 400);
+    $shownContent.fadeTo(200, 0).queue(function () {
+      var $newContent = $tabsContents.children('.tab-content-' + contentType);
+      $shownContent.children().appendTo($tabsContents);
+      $newContent.appendTo($shownContent);
+      $shownContent.dequeue();
+    }).fadeTo(200, 1.0);
+  }
+
+
+  $(function() {
+    if (!$.cookie || !$.removeCookie) return;
+
+    var $toggleNotActivePosts = $('.toggle-not-active-news');
+
+    var toggleNotActivePostsHandler = function () {
+      var hideNotActive = $toggleNotActivePosts.hasClass('hide-not-active');
+
+      if (hideNotActive) {
+        $toggleNotActivePosts.removeClass('hide-not-active');
+        $('.post-list').removeClass('editor-not-active-posts-hidden');
+        $.removeCookie('mipt_editor_hide_not_active_posts');
+      } else {
+        $toggleNotActivePosts.addClass('hide-not-active');
+        $('.post-list').addClass('editor-not-active-posts-hidden');
+        $.cookie('mipt_editor_hide_not_active_posts', 1, {expires: 30});
+      }
+    };
+
+    if ($.cookie('mipt_editor_hide_not_active_posts')) {
+      toggleNotActivePostsHandler();
+    }
+    $toggleNotActivePosts.on('click', toggleNotActivePostsHandler);
+  });
+
+})(jQuery);
+/* End */
+;
+; /* Start:"a:4:{s:4:"full";s:89:"/bitrix/components/alfa/mipt.calendar_op/templates/.default/js/scripts.js?151924972923043";s:6:"source";s:73:"/bitrix/components/alfa/mipt.calendar_op/templates/.default/js/scripts.js";s:3:"min";s:0:"";s:3:"map";s:0:"";}"*/
+(function ($) {
+  var ajaxFormSel = '#event-ajax-form';
+
+  var dateUtils = (function () {
+    var dateRegex = /(\d+)[\.\-\/](\d+)[\.\-\/](\d+)/,
+        monthIdRegex = /month-id-(\d{4}-\d{1,2})/,
+        timeRegex = /(\d+):(\d+):(\d+)/;
+
+    function zeroFill2(number) {
+      return number < 10 ? '0' + number : '' + number;
+    }
+
+    return {
+      getISODay: function (date) {
+        var dayOfWeek = date.getDay();
+        if (dayOfWeek == 0) dayOfWeek = 7;
+        return dayOfWeek;
+      },
+      buildEventDateString: function (eventProps) {
+        var t = this;
+        var startDate = t.convertToDate(eventProps.start_date);
+        var startDateString = t.convertToDateString(startDate);
+        if (eventProps.show_end_date == 'Y' && eventProps.end_date) {
+          var endDate = t.convertToDate(eventProps.end_date);
+          var endDateString = t.convertToDateString(endDate);
+          if (endDateString && startDateString != endDateString) {
+            return startDateString + ' - ' + endDateString;
+          }
+        }
+        return startDateString;
+      },
+      convertToDate: function (string) {
+        if (!string) return null;
+        var dateMatch = string.match(dateRegex);
+        if (dateMatch) {
+          var month = parseInt(dateMatch[2], 10) - 1;
+          if (dateMatch[1].length == 2) { // format: 01-01-1999 00:00:00
+            var year = parseInt(dateMatch[3], 10);
+            var day = parseInt(dateMatch[1], 10);
+          } else { // format: 1999-01-01 00:00:00
+            year = parseInt(dateMatch[1], 10);
+            day = parseInt(dateMatch[3], 10);
+          }
+          var timeMatch = string.match(timeRegex);
+          if (timeMatch) {
+            var hours = parseInt(timeMatch[1], 10);
+            var minutes = parseInt(timeMatch[2], 10);
+            var seconds = parseInt(timeMatch[3], 10);
+          } else {
+            hours = 0;
+            minutes = 0;
+            seconds = 0;
+          }
+          return new Date(year, month, day, hours, minutes, seconds, 0);
+        } else {
+          return null;
+        }
+      },
+      convertToDateString: function (date) {
+        return date ? zeroFill2(date.getDate()) +
+        '.' + zeroFill2(date.getMonth() + 1) +
+        '.' + date.getFullYear() : '';
+      },
+      convertToString: function (date) { // format: 1999-01-01 00:00:00
+        return date ? date.getFullYear() +
+        '-' + zeroFill2(date.getMonth() + 1) +
+        '-' + zeroFill2(date.getDate()) +
+        ' ' + zeroFill2(date.getHours()) +
+        ':' + zeroFill2(date.getMinutes()) +
+        ':' + zeroFill2(date.getSeconds()) : '';
+      },
+      extractDate: function (string) {
+        var monthString = this.extractMonthString(string);
+        var dateParts = monthString.split('-');
+        var date = new Date();
+        date.setFullYear(parseInt(dateParts[0], 10),
+            parseInt(dateParts[1], 10) - 1, 1);
+        return date;
+      },
+      extractDateString: function (string) {
+        if (string) {
+          var match = string.match(dateRegex);
+        }
+        return match ? match[0] : '';
+      },
+      extractMonthString: function (string) {
+        var substrings = string.split(' ');
+        for (var i = 0, len = substrings.length; i < len; ++i) {
+          var substring = substrings[i];
+          var match = substring.match(monthIdRegex);
+          if (match) return match[1];
+        }
+        return '';
+      },
+      extractTime: function (string) {
+        if (string) {
+          var match = string.match(timeRegex);
+        }
+        return match ? match[0] : '';
+      },
+      normalizeDateString: function (string) {
+        return this.convertToString(this.convertToDate(string));
+      }
+    };
+  })();
+
+  var cache = (function () {
+    var monthsToCache = 2,
+        monthIdClassPrefix = '.month-id-',
+        pendingRequests = {},
+        ajaxSettings = null,
+        $monthListCache = null;
+
+    $(function () {
+      var $ajaxForm = $(ajaxFormSel);
+      ajaxSettings = {
+        url: location.pathname,
+        type: 'POST',
+        data: {
+          AJAX: 'Y',
+          CID: $ajaxForm.find('[name="cid"]').val()
+        }
+      };
+      $monthListCache = $('.event-calendar .month-list-cache');
+    });
+
+    function getRequestId(month) {
+      return month.getFullYear() + '-' + (month.getMonth() + 1);
+    }
+
+    function getMonthIdClass(month) {
+      return monthIdClassPrefix + month.getFullYear() + '-' +
+          (month.getMonth() + 1);
+    }
+
+    function getMonthData(requestedMonth, dirForward) {
+      var month = new Date(+requestedMonth);
+      var requestId = getRequestId(month);
+      var promise = pendingRequests[requestId];
+      if (promise) return promise;
+      month.setDate(1);
+      var periodStart = new Date(+month);
+      var periodEnd = new Date(+month);
+      if (dirForward) {
+        ajaxSettings.data.periodStart = dateUtils.convertToString(periodStart);
+        periodEnd.setMonth(month.getMonth() + monthsToCache, 1);
+        ajaxSettings.data.periodEnd = dateUtils.convertToString(periodEnd);
+      } else {
+        periodEnd.setMonth(month.getMonth() + 1, 1);
+        ajaxSettings.data.periodEnd = dateUtils.convertToString(periodEnd);
+        periodStart.setMonth(month.getMonth() + 1 - monthsToCache, 1);
+        ajaxSettings.data.periodStart = dateUtils.convertToString(periodStart);
+      }
+      promise = $.ajax(ajaxSettings);
+      var periodStartMs = +periodStart;
+      var periodEndMs = +periodEnd;
+      month = new Date(periodStartMs);
+      while (+month < periodEndMs) {
+        pendingRequests[getRequestId(month)] = promise;
+        month.setMonth(month.getMonth() + 1);
+      }
+      promise.always(function () {
+        var month = new Date(periodStartMs);
+        while (+month < periodEndMs) {
+          delete pendingRequests[getRequestId(month)];
+          month.setMonth(month.getMonth() + 1);
+        }
+      }).done(function (responseData, textStatus, jqXHR) {
+        try {
+          var data = JSON.parse(responseData);
+        } catch (e) {
+          console.log('Exception: ' + e);
+          console.log(responseData && responseData.slice(0, 1000));
+        }
+        if (!data || !data.MONTHS || !data.MONTHS.length) return;
+        var months = data.MONTHS;
+        var events = data.EVENTS ? data.EVENTS : {};
+        var $loadedMonths = $('<div>');
+        for (var m = 0, monthCount = months.length; m < monthCount; ++m) {
+          var month = months[m];
+          var monthSelector = monthIdClassPrefix + month.year + '-' +
+              month.month;
+          var $month = $monthListCache.children(monthSelector);
+          if (!$month.filter('.month-slide').length) {
+            $loadedMonths.append(markupFactory.buildMonthSlide(month, events));
+          }
+        }
+        if (dirForward) {
+          $loadedMonths.children().appendTo($monthListCache);
+        } else {
+          $loadedMonths.children().prependTo($monthListCache);
+        }
+      }).fail(function (jqXHR, textStatus, errorThrown) {
+        console.log('Could not get calendar data. Status: ' + textStatus);
+      });
+      return promise;
+    }
+
+    function findEldestMonthToCache(month) {
+      var eldestMonth = new Date(+month);
+      var cachedMonths = 0;
+      while ($monthListCache.children(getMonthIdClass(eldestMonth)).length) {
+        cachedMonths++;
+        if (cachedMonths > monthsToCache) return null;
+        eldestMonth.setMonth(eldestMonth.getMonth() - 1);
+      }
+      return eldestMonth;
+    }
+
+    function findNewestMonthToCache(month) {
+      var newestMonth = new Date(+month);
+      var cachedMonths = 0;
+      while ($monthListCache.children(getMonthIdClass(newestMonth)).length) {
+        cachedMonths++;
+        if (cachedMonths > monthsToCache) return null;
+        newestMonth.setMonth(newestMonth.getMonth() + 1);
+      }
+      return newestMonth;
+    }
+
+    return {
+      cacheMonthMarkup: function (month, dirForward) {
+        if (dirForward) {
+          var monthToCache = findNewestMonthToCache(month);
+        } else {
+          monthToCache = findEldestMonthToCache(month);
+        }
+        if (monthToCache) getMonthData(monthToCache, dirForward);
+      },
+      getMonthMarkup: function (month, dirForward, callback) {
+        var monthString = month.getFullYear() + '-' + (month.getMonth() + 1);
+        var monthIdClassSelector = monthIdClassPrefix + monthString;
+        var $monthSlide = $monthListCache.children(monthIdClassSelector);
+        if ($monthSlide.length) {
+          callback($monthSlide.clone(true));
+        } else {
+          var promise = getMonthData(month, dirForward);
+          promise.done(function () {
+            var $monthSlide = $monthListCache
+                .children(monthIdClassSelector + '.month-slide');
+            callback($monthSlide.clone(true));
+          }).fail(function () {
+            callback($());
+          });
+        }
+      }
+    };
+  })();
+
+  var markupFactory = (function () {
+    var lang = 'ru',
+        dayNames = null,
+        weekDayNames = {
+          ru: ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+          en: ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        };
+
+    $(function () {
+      var $ajaxForm = $(ajaxFormSel);
+      lang = $ajaxForm.find('[name="lang"]').val();
+      dayNames = weekDayNames[lang || 'ru'];
+    });
+
+    function buildDateCell(day, events) {
+      var $dateCell = $('<td>', { 'class': 'date-cell' +
+          ' day-' + day.year + '-' + day.month + '-' + day.day +
+          ((day.day_of_week == 6 || day.day_of_week == 7) ?
+          ' weekend' : '') + (day.events ? ' has-events' : '') });
+      $('<span>', { 'class': 'date' }).text(day.day).appendTo($dateCell);
+      if (day.events) {
+        var dayEvents = day.events;
+        var $eventList = $('<div>', { 'class': 'event-list' });
+        for (var j = 0; j < dayEvents.length; ++j) {
+          $eventList.append(buildCalendarEventItem(events[dayEvents[j]]));
+        }
+        $eventList.appendTo($dateCell);
+      }
+      return $dateCell;
+    }
+
+    function buildCalendarEventItem(item) {
+      if (!item) return $();
+      var props = item.PROPS;
+      var startDate = props.start_date;
+      var endDate = '';
+      if (props.show_end_date == 'Y' && props.end_date) {
+        endDate = props.end_date;
+      }
+      var $event = $('<div>', { 'class': 'event' }).data({
+        startDate: startDate, endDate: endDate
+      });
+      var $eventLink = $('<a>', {
+        'class': 'event-link',
+        href: item.DETAIL_PAGE_URL
+      }).append(item.NAME);
+      $('<div>', { 'class': 'event-title' }).append($eventLink).
+          appendTo($event);
+      $('<div>', { 'class': 'event-date' }).append(item.date).appendTo($event);
+      $('<div>', { 'class': 'event-summary' }).append(item.PREVIEW_TEXT).
+          appendTo($event);
+      return $event;
+    }
+
+    return {
+      buildMonthSlide: function (month, events) {
+        var dayNumber = 1;
+        var $month = $('<div>', {
+          'class': 'month-id-' + month.year + '-' + month.month + ' month-slide'
+        });
+        $('<div>', { 'class': 'month-name' }).
+            text(month.month_name + ' ' + month.year).appendTo($month);
+        var $dateListTable = $('<table>', { 'class': 'date-list' });
+        var $tbody = $('<tbody>');
+        $tbody.appendTo($dateListTable);
+        if (dayNames) {
+          var $dayNameList = $('<tr>', { 'class': 'day-name-list' });
+          for (var i = 1; i <= 7; ++i) {
+            $('<td>', { 'class': 'day-name-cell' }).
+                append($('<span>', { 'class': 'day-name' }).
+                    text(dayNames[i])).appendTo($dayNameList);
+          }
+          $dayNameList.appendTo($tbody);
+        }
+        var monthDays = month.days;
+        var monthFirstDayDow = +monthDays[0].day_of_week;
+        var monthDayIndex = 0;
+        if (monthFirstDayDow != 1) {
+          // If the first day of month's first week is not a Monday we have
+          // to prepend some days from previous month.
+          var monthFirstDate = new Date(+month.year, +month.month - 1, 1);
+          // first day of week of previous month's last week
+          var prevMonthDate = new Date(monthFirstDate -
+          (monthFirstDayDow - 1) * 864e5);
+          var $firstWeek = $('<tr>', { 'class': 'week' });
+          for (var dow = 1; dow < monthFirstDayDow; ++dow, ++dayNumber) {
+            var $dateCell = $('<td>', { 'class': 'date-cell day-' +
+                prevMonthDate.getFullYear() + '-' +
+                (prevMonthDate.getMonth() + 1) + '-' + prevMonthDate.getDate() +
+                ((dow == 6 || dow == 7) ? ' weekend' : '') });
+            $('<span>', { 'class': 'date prev-month' }).
+                text(prevMonthDate.getDate()).appendTo($dateCell);
+            $dateCell.appendTo($firstWeek);
+            prevMonthDate.setDate(prevMonthDate.getDate() + 1);
+          }
+          for (; dow <= 7; ++dow, ++dayNumber, ++monthDayIndex) {
+            $firstWeek.append(buildDateCell(monthDays[monthDayIndex], events));
+          }
+          $firstWeek.appendTo($tbody);
+        }
+        var weekDays = [];
+        for (var len = monthDays.length; monthDayIndex < len;
+             ++monthDayIndex, ++dayNumber)
+        {
+          var monthDay = monthDays[monthDayIndex];
+          weekDays.push(monthDay);
+          if (monthDay.day_of_week == 7) {
+            var $week = $('<tr>', { 'class': 'week' });
+            for (i = 0; i < weekDays.length; ++i) {
+              $week.append(buildDateCell(weekDays[i], events));
+            }
+            $week.appendTo($tbody);
+            weekDays = [];
+          }
+        }
+        var nextMonthDate = new Date(+month.year, +month.month, 1);
+        if (weekDays.length) {
+          $week = $('<tr>', { 'class': 'week' });
+          for (dow = 0; dow < weekDays.length; ++dow) {
+            $week.append(buildDateCell(weekDays[dow], events));
+          }
+          for (; dow < 7; ++dow, ++dayNumber,
+              nextMonthDate.setDate(nextMonthDate.getDate() + 1)) {
+            $('<td>', { 'class': 'date-cell day-' +
+                nextMonthDate.getFullYear() + '-' +
+                (nextMonthDate.getMonth() + 1) + '-' + nextMonthDate.getDate() +
+                ((dow == 5 || dow == 6) ? ' weekend' : '')}).append(
+                    $('<span>', { 'class': 'date next-month' }).
+                        text(nextMonthDate.getDate())
+                ).appendTo($week);
+          }
+          $week.appendTo($tbody);
+        }
+        weekDays = [];
+        for (; dayNumber <= 42; ++dayNumber,
+            nextMonthDate.setDate(nextMonthDate.getDate() + 1)) {
+          weekDays.push({
+            year: nextMonthDate.getFullYear(),
+            month: nextMonthDate.getMonth() + 1,
+            date: nextMonthDate.getDate(),
+            dayOfWeek: nextMonthDate.getDay()
+          });
+
+          if (nextMonthDate.getDay() == 0) {
+            $week = $('<tr>', { 'class': 'week' });
+            for (var day = 0; day < weekDays.length; ++day) {
+              var weekDay = weekDays[day];
+              $('<td>', { 'class': 'date-cell day-' + weekDay.year + '-' +
+              weekDay.month + '-' + weekDay.date +
+              ((weekDay.dayOfWeek == 6 || weekDay.dayOfWeek == 0) ?
+                  ' weekend' : '')}).append(
+                  $('<span>', { 'class': 'date next-month' }).text(weekDay.date)
+              ).appendTo($week);
+            }
+            $week.appendTo($tbody);
+            weekDays = [];
+          }
+        }
+        $dateListTable.appendTo($month);
+        return $month;
+      }
+    }
+  })();
+
+  var navControls = (function () {
+    var calendarTransDuration = 400,
+        selectedMonth = new Date(),
+        $calendarWrapper = $(),
+        $monthSlides = $(),
+        $navLeft = $(),
+        $navRight = $();
+
+    $(function () {
+      var $calendar = $('#event-calendar .event-calendar');
+      $navLeft = $calendar.find('.arrow-left');
+      $navLeft.on('click', onNavLeftClick);
+      $navRight = $calendar.find('.arrow-right');
+      $navRight.on('click', onNavRightClick);
+      $monthSlides = $calendar.find('.month-slides');
+      $calendarWrapper = $calendar.find('.calendar-wrapper');
+      var $currentMonth = $monthSlides.children('.month-slide.current');
+      $currentMonth.addClass('selected');
+      selectedMonth = dateUtils.extractDate($currentMonth.attr('class'));
+    });
+
+    function onNavLeftClick(event) {
+      $navLeft.off('click');
+      var date = new Date(selectedMonth.getFullYear(),
+          selectedMonth.getMonth() - 1, 1);
+      cache.getMonthMarkup(date, false, function ($month) {
+        if (!$month || !$month.length) {
+          $navLeft.on('click', onNavLeftClick);
+          return;
+        }
+        var $calendarMonth = $month.filter('.month-slide');
+        var $selectedMonth = $monthSlides.children('.selected');
+        $calendarMonth.css('margin-left', '-' + $selectedMonth.width() + 'px').
+            prependTo($monthSlides);
+        $calendarMonth.animate({
+          marginLeft: 0 + 'px'
+        }, {
+          duration: calendarTransDuration,
+          easing: 'swing',
+          complete: function () {
+            $selectedMonth.remove();
+            $monthSlides.children('.month-slide').addClass('selected');
+            selectedMonth.setMonth(selectedMonth.getMonth() - 1, 1);
+            cache.cacheMonthMarkup(date, false);
+            $navLeft.on('click', onNavLeftClick);
+          }
+        });
+      });
+    }
+
+    function onNavRightClick(event) {
+      $navRight.off('click');
+      var date = new Date(selectedMonth.getFullYear(),
+          selectedMonth.getMonth() + 1, 1);
+      cache.getMonthMarkup(date, true, function ($month) {
+        if (!$month || !$month.length) {
+          $navRight.on('click', onNavRightClick);
+          return;
+        }
+        var $calendarMonth = $month.filter('.month-slide');
+        $calendarMonth.appendTo($monthSlides);
+        var $selectedMonth = $monthSlides.children('.selected');
+        $selectedMonth.animate({
+          marginLeft: '-' + $selectedMonth.width() + 'px'
+        }, {
+          duration: calendarTransDuration,
+          easing: 'swing',
+          complete: function () {
+            $selectedMonth.remove();
+            $monthSlides.children('.month-slide').addClass('selected');
+            selectedMonth.setMonth(selectedMonth.getMonth() + 1, 1);
+            cache.cacheMonthMarkup(date, true);
+            $navRight.on('click', onNavRightClick);
+          }
+        });
+      });
+    }
+  })();
+
+  var popupControls = (function () {
+    var popups = {};
+    var intentionTimeout = 150;
+    var popupSnapTo = 'left';
+
+    $(function () {
+      var $ajaxForm = $(ajaxFormSel);
+      popupSnapTo = $ajaxForm.find('[name="popupDir"]').val().
+          toLowerCase() == 'left' ? 'right' : 'left';
+      var $calendar = $('#event-calendar .event-calendar');
+      $calendar.on('mouseenter', '.has-events', showDateEvents);
+      $calendar.on('mouseleave', '.has-events', hideDateEvents);
+    });
+
+    function showDateEvents(event) {
+      var $dateCell = $(this);
+      var $date = $dateCell.children('.date');
+      var $monthSlide = $date.parents('.month-slide');
+      var monthString = dateUtils.extractMonthString($monthSlide.attr('class'));
+      var popupId = 'popup-id-' + monthString + '-' + $date.text();
+      var $popup = $('#' + popupId);
+      if ($popup.length) {
+        $popup.stop(true).fadeTo(400, 1.0);
+      } else {
+        if (popups[popupId]) return; // popup is already about to be shown
+        popups[popupId] = {};
+        popups[popupId].timeoutId = setTimeout(function () {
+          var $eventList = $date.siblings('.event-list').children().clone(true);
+          var offset = $dateCell.offset();
+          $popup = $('<div>', { id: popupId, 'class': 'popup' }).
+              css({ display: 'block', opacity: '0' }).
+              append($eventList).appendTo('body');
+          var cellWidth = $dateCell.width();
+          var cellHeight = $dateCell.height();
+          if (popupSnapTo == 'left') {
+            $popup.css({
+              left: (offset.left + cellWidth / 2) + 'px',
+              top: (offset.top + cellHeight * 3 / 2) + 'px'
+            });
+          } else {
+            $popup.css({
+              left: (offset.left + cellWidth / 2 - $popup.outerWidth()) + 'px',
+              top: (offset.top + cellHeight * 3 / 2) + 'px'
+            });
+          }
+          $popup.on('mouseenter', showEventsPopup);
+          $popup.on('mouseleave', hideEventsPopup);
+          $popup.fadeTo(400, 1.0);
+          popups[popupId] = null;
+        }, intentionTimeout);
+      }
+    }
+
+    function hideDateEvents(event) {
+      var $dateCell = $(this);
+      var $date = $dateCell.children('.date');
+      var $monthSlide = $date.parents('.month-slide');
+      var monthString = dateUtils.extractMonthString($monthSlide.attr('class'));
+      var popupId = 'popup-id-' + monthString + '-' + $date.text();
+      if (popups[popupId]) {
+        clearTimeout(popups[popupId].timeoutId);
+        popups[popupId] = null;
+      }
+      var $popup = $('#' + popupId);
+      $popup.delay(intentionTimeout).fadeOut(400, function () {
+        $popup.remove();
+      });
+    }
+
+    function showEventsPopup(event) {
+      var $popup = $(this);
+      $popup.stop(true).css('z-index', 1000).fadeTo(400, 1.0);
+    }
+
+    function hideEventsPopup(event) {
+      var $popup = $(this);
+      $popup.fadeOut(200, function () {
+        $popup.remove();
+      });
+    }
+  })();
+
+  var dayHighlighter = (function () {
+    var activeCellClass = 'active-event',
+        $monthSlides = $(),
+        $document = $(document);
+
+    $(function () {
+      var $dataForm = $(ajaxFormSel);
+      var highlightEvents =
+          $dataForm.find('[name="highlightEvents"]').val() == 'Y';
+      if (highlightEvents) {
+        $monthSlides = $('#event-calendar .month-slides');
+        $document.on('mouseenter', '.popup .event', onEventMouseEnter);
+        $document.on('mouseleave', '.popup .event', onEventMouseLeave);
+      }
+    });
+
+    function onEventMouseEnter(event) {
+      $monthSlides.find('.date-cell.' + activeCellClass).
+          removeClass(activeCellClass);
+      var $event = $(this);
+      var endDateStr = $event.data('endDate');
+      if (!endDateStr) return;
+      var endDate = dateUtils.convertToDate(endDateStr);
+      endDate.setHours(0, 0, 0, 0);
+      var date = dateUtils.convertToDate($event.data('startDate'));
+      date.setHours(0, 0, 0, 0);
+      if (+date === +endDate) return;
+      endDate.setDate(endDate.getDate() + 1);
+      while (+date < +endDate) {
+        var dayClassSel = '.day-' + date.getFullYear() + '-' +
+            (date.getMonth() + 1) + '-' + date.getDate();
+        $monthSlides.find(dayClassSel).addClass(activeCellClass);
+        date.setDate(date.getDate() + 1);
+      }
+    }
+
+    function onEventMouseLeave(event) {
+      $monthSlides.find('.date-cell.' + activeCellClass).
+          removeClass(activeCellClass);
+    }
+  })();
+})(jQuery);
+
+/* End */
+;
+; /* Start:"a:4:{s:4:"full";s:87:"/bitrix/templates/mainpage/components/bitrix/news.list/banners/script.js?14805186331066";s:6:"source";s:72:"/bitrix/templates/mainpage/components/bitrix/news.list/banners/script.js";s:3:"min";s:0:"";s:3:"map";s:0:"";}"*/
+(function ($) {
+  var rootSel = '#main-banners',
+      slidingBgClass = 'sliding-bg',
+      slidingBgSel = '.' + slidingBgClass;
+
+  $(function () {
+    var $root = $(rootSel);
+    if (!$root.length) return;
+    if ($root.hasClass('no-sliding-bg')) return;
+    var imageWidth = $root.width();
+    var maxLeft = Math.round(imageWidth * 4/5);
+    var minLeft = Math.round(imageWidth * 3/5);
+    $root.find('.banner-link').each(function () {
+      var left = Math.round(minLeft + Math.random() * (maxLeft - minLeft));
+      $('<span>', { 'class': slidingBgClass }).css('left', left + 'px').data({
+        maxLeft: imageWidth,
+        minLeft: left
+      }).appendTo(this);
+    }).hover(onMouseEnter, onMouseLeave);
+  });
+
+  function onMouseEnter() {
+    var $slidingBg = $(this).children(slidingBgSel);
+    $slidingBg.stop(true).animate({
+      left: $slidingBg.data('maxLeft')
+    });
+  }
+
+  function onMouseLeave() {
+    var $slidingBg = $(this).children(slidingBgSel);
+    $slidingBg.stop(true).animate({
+      left: $slidingBg.data('minLeft')
+    });
+  }
+})(jQuery);
+/* End */
+;; /* /bitrix/components/alfa/post_list.slider/templates/.default/script.js?148941412119842*/
+; /* /bitrix/components/alfa/post_list.tabs/templates/tabs_on_main_page/script.js?15077363515031*/
+; /* /bitrix/components/alfa/mipt.calendar_op/templates/.default/js/scripts.js?151924972923043*/
+; /* /bitrix/templates/mainpage/components/bitrix/news.list/banners/script.js?14805186331066*/
